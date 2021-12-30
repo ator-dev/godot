@@ -37,6 +37,7 @@
 #include "tests/core/io/test_marshalls.h"
 #include "tests/core/io/test_pck_packer.h"
 #include "tests/core/io/test_resource.h"
+//#include "tests/core/io/test_undo_redo.h"
 #include "tests/core/io/test_xml_parser.h"
 #include "tests/core/math/test_aabb.h"
 #include "tests/core/math/test_astar.h"
@@ -150,6 +151,8 @@ int test_main(int argc, char *argv[]) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "servers/audio/audio_driver_dummy.h"
+#include "servers/audio_server.h"
 #include "servers/navigation_server_2d.h"
 #include "servers/navigation_server_3d.h"
 #include "servers/rendering/rendering_server_default.h"
@@ -169,7 +172,7 @@ struct GodotTestCaseListener : public doctest::IReporter {
 
 		String name = String(p_in.m_name);
 
-		if (name.find("[SceneTree]") != -1) {
+		if (name.find("[SceneTree]") != -1 || name.find("[UndoRedo]") != -1) {
 			GLOBAL_DEF("memory/limits/multithreaded_server/rid_pool_prealloc", 60);
 			memnew(MessageQueue);
 
@@ -203,6 +206,42 @@ struct GodotTestCaseListener : public doctest::IReporter {
 
 			memnew(SceneTree);
 			SceneTree::get_singleton()->initialize();
+			return;
+		}
+
+		if (name.find("[UndoRedo]") != -1 && false) {
+			MainLoop *main_loop = nullptr;
+			main_loop = memnew(SceneTree);
+			String main_loop_type = GLOBAL_DEF("application/run/main_loop_type", "SceneTree");
+
+			if (!main_loop && main_loop_type.is_empty()) {
+				main_loop_type = "SceneTree";
+			}
+
+			if (!main_loop) {
+				if (!ClassDB::class_exists(main_loop_type)) {
+					OS::get_singleton()->alert("Error: MainLoop type doesn't exist: " + main_loop_type);
+					return;
+				} else {
+					Object *ml = ClassDB::instantiate(main_loop_type);
+
+					main_loop = Object::cast_to<MainLoop>(ml);
+					if (!main_loop) {
+						memdelete(ml);
+					}
+				}
+			}
+
+			if (main_loop->is_class("SceneTree")) {
+				ResourceLoader::add_custom_loaders();
+				ResourceSaver::add_custom_savers();
+			}
+
+			memnew(Input);
+			AudioDriverManager::initialize(0);
+			AudioServer *as = memnew(AudioServer);
+			as->init();
+			//EditorNode *editor_node = memnew(EditorNode);
 			return;
 		}
 	}

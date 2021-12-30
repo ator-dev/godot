@@ -75,6 +75,7 @@
 #include "servers/xr_server.h"
 
 #ifdef TESTS_ENABLED
+#include "tests/core/io/test_undo_redo.h"
 #include "tests/test_main.h"
 #endif
 
@@ -179,6 +180,9 @@ static int fixed_fps = -1;
 static bool print_fps = false;
 #ifdef TOOLS_ENABLED
 static bool dump_extension_api = false;
+#endif
+#ifdef TESTS_ENABLED
+static bool undo_tests_enabled = false;
 #endif
 bool profile_gpu = false;
 
@@ -386,6 +390,7 @@ void Main::print_help(const char *p_binary) {
 #endif
 #ifdef TESTS_ENABLED
 	OS::get_singleton()->print("  --test [--help]                              Run unit tests. Use --test --help for more information.\n");
+	OS::get_singleton()->print("  --test-undo                                  Run unit tests on the UndoRedo system. Implies --headless.\n");
 #endif
 #endif
 	OS::get_singleton()->print("\n");
@@ -873,11 +878,15 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		} else if (I->get() == "--low-dpi") { // force low DPI (macOS only)
 
 			force_lowdpi = true;
-		} else if (I->get() == "--headless") { // enable headless mode (no audio, no rendering).
+		} else if (I->get() == "--headless" || I->get() == "--test-undo") { // enable headless mode (no audio, no rendering).
 
 			audio_driver = "Dummy";
 			display_driver = "headless";
-
+#ifdef TESTS_ENABLED
+			if (I->get() == "--test-undo") {
+				undo_tests_enabled = true;
+			}
+#endif
 		} else if (I->get() == "--profiling") { // enable profiling
 
 			use_debug_profiler = true;
@@ -2567,6 +2576,13 @@ bool Main::start() {
 	}
 
 	OS::get_singleton()->set_main_loop(main_loop);
+
+#ifdef TESTS_ENABLED
+	if (undo_tests_enabled) {
+		TestUndoRedo *test_undo_redo = memnew(TestUndoRedo);
+		test_undo_redo->test_actions();
+	}
+#endif
 
 	return true;
 }
